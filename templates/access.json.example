@@ -1,0 +1,44 @@
+{
+  "dmPolicy": "pairing",
+  "replyToMode": "all",
+  "allowFrom": [
+    "1327192313616797706"
+  ],
+  "groups": {
+    "1520739045993480273": {
+      "requireMention": true,
+      "allowFrom": []
+    },
+    "1510416432763240621": {
+      "requireMention": true,
+      "allowFrom": []
+    },
+    "1510397805368311953": {
+      "requireMention": true,
+      "allowFrom": []
+    },
+    "1510400009697493165": {
+      "requireMention": true,
+      "allowFrom": []
+    },
+    "1511851496830930944": {
+      "requireMention": true,
+      "allowFrom": []
+    },
+    "1511928324379774986": {
+      "requireMention": true,
+      "allowFrom": []
+    },
+    "1520255583301931039": {
+      "requireMention": true,
+      "allowFrom": []
+    }
+  },
+  "pending": {},
+  "mentionPatterns": [
+    "@plannerbot",
+    "<@1520719061498204262>",
+    "<@!1520719061498204262>"
+  ],
+  "ackReaction": "\ud83d\udc40"
+}

@@ -80,7 +80,13 @@ launchd (PID 1)
 | claude stderr log | `/tmp/plannerbot-claude-stderr.log` | claude + bun 의 stderr 출력 |
 | claude stdout log | `/tmp/plannerbot-claude-stdout.log` | claude TUI 출력 |
 
-### 🛠 관리 명령 (전체)
+#
+
+## 🎚 하네스 (plannerbot 한정 강한 자율)
+
+[docs/harness.md](docs/harness.md) —  + / deny 로 빠른 자율 응답. 사용자 본체 세션은 high effort + 자유.
+
+## 🛠 관리 명령 (전체)
 
 ```bash
 # ─── 상태 확인 ───
