@@ -1,0 +1,14 @@
+#!/bin/zsh
+# {{BOT}} wrapper — generated from bot-claude-wrapper.sh.template
+#   - effort: {{EFFORT}}
+#   - autonomous (AskUserQuestion, ExitPlanMode, TodoWrite, NotebookEdit denied)
+#   - script -q /dev/null → pty (claude interactive mode)
+export PATH="/Users/sanghee/.bun/bin:/Users/sanghee/.nvm/versions/node/v22.20.0/bin:/opt/homebrew/bin:/usr/bin:/bin"
+export DISCORD_STATE_DIR="/Users/sanghee/.claude/channels/discord-{{BOT}}"
+cd "/Users/sanghee/dev/projects/{{BOT}}"
+exec /usr/bin/script -q /dev/null /Users/sanghee/.nvm/versions/node/v22.20.0/bin/claude \
+  --channels plugin:discord@claude-plugins-official \
+  --dangerously-skip-permissions \
+  --effort {{EFFORT}} \
+  --settings /tmp/{{BOT}}-settings.json \
+  --disallowedTools "{{DISALLOWED_TOOLS}}"
