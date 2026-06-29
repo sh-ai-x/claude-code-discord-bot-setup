@@ -12,7 +12,7 @@ head -1 "$SOUL" | grep -q '^---$' || { echo "FAIL: missing opening frontmatter d
 sed -n '/^---$/,/^---$/p' "$SOUL" | grep -q '^name: dsbot$' || { echo "FAIL: name: dsbot missing in frontmatter"; exit 1; }
 
 # 4. Identity section
-grep -q 'I am \*\*dsbot\*\*' "$SOUL" || { echo "FAIL: identity section missing"; exit 1; }
+grep -q '나는 \*\*dsbot\*\*' "$SOUL" || { echo "FAIL: identity section missing"; exit 1; }
 
 # 5. All 4 senior principles present
 for principle in 'Statistical Rigor|통계적 엄밀' 'Pragmatic Generalism|실용 일반' 'Code/Notebook Discipline|코드.*위생|노트북.*위생' 'Decision Framing|의사결정 프레이밍'; do
