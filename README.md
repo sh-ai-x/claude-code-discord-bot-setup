@@ -193,6 +193,57 @@ bash install.sh
 
 ---
 
+## ➕ Adding a new bot
+
+This repo supports any number of Discord bots via `install.sh [bot-name]`. Existing example: `plannerbot` (medium effort, strategy). New example: `dsbot` (high effort, senior data scientist).
+
+### One-line install
+
+```bash
+EFFORT=high bash install.sh dsbot
+```
+
+`EFFORT` accepts `medium` (default) or `high`. Other env vars:
+
+- `EFFORT=medium|high` — passed to `--effort` flag and `effortLevel` in settings.json
+- `DISALLOWED_TOOLS="ToolA,ToolB"` — passed to `--disallowedTools` flag (default: `AskUserQuestion,ExitPlanMode,TodoWrite,NotebookEdit`)
+
+### Required new-bot files
+
+For a brand-new bot (no existing `templates/soul-<bot>.md`), you need:
+
+| File | Purpose |
+|---|---|
+| `templates/soul-<bot>.md` | Persona (frontmatter + identity + signatures + rules). Required. |
+| `wrappers/bot-claude-wrapper.sh.template` | Already exists; parameterized by `{{BOT}}` / `{{EFFORT}}` / `{{DISALLOWED_TOOLS}}`. |
+| `templates/settings.json.template` | Already exists; parameterized by `{{BOT}}` / `{{EFFORT_LEVEL}}`. |
+
+If you want bot-specific CLI flags (not just effort), add `wrappers/<bot>-claude-wrapper.sh` and `install.sh` will use it directly instead of the template.
+
+### Discord Developer Portal (per bot)
+
+1. New Application → name = `<bot>` → Bot tab → Reset Token → copy
+2. Privileged Gateway Intents → **Message Content Intent ON**
+3. OAuth2 → URL Generator → `bot` + `applications.commands` scopes → invite to server
+4. Get bot's snowflake ID (right-click bot → Copy User ID; needs Developer Mode)
+5. Get user's own snowflake ID
+6. Get channel IDs the bot should respond in
+
+### State dir contents (per bot, after install)
+
+```
+~/.claude/channels/discord-<bot>/
+├── .env              # DISCORD_BOT_TOKEN (chmod 600, user creates)
+├── soul.md           # copied from templates/soul-<bot>.md (or soul-plannerbot.md fallback)
+└── access.json       # user edits: allowFrom, mentionPatterns, ackReaction
+```
+
+### Cross-bot collaboration
+
+Multiple bots in the same channel auto-mention each other via `meta.channel_bots` (injected by the discord plugin patch). No extra config needed beyond putting them in the same channels.
+
+---
+
 ## 🔧 수동 셋업 (단계별)
 
 ### 0. Discord 봇 생성
