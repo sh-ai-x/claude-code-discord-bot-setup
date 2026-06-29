@@ -1,0 +1,9 @@
+{
+  "effortLevel": "{{EFFORT_LEVEL}}",
+  "permissions": {
+    "deny": [
+      "AskUserQuestion",
+      "ExitPlanMode"
+    ]
+  }
+}
