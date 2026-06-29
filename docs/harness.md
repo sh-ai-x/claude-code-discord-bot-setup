@@ -1,6 +1,6 @@
-# plannerbot 한정 강한 자율 하네스
+# 다봇 자율 하네스 (plannerbot + dsbot)
 
-`plannerbot` 은 일반 claude 세션과 다르게, Discord 채널에서 다봇 협업 + 빠른 자율 응답이 필요. 이 하네스는 **plannerbot 한정** 으로 적용되며, 사용자 본체 claude 세션에는 영향 없음.
+각 봇(`plannerbot`, `dsbot`)은 일반 claude 세션과 다르게, Discord 채널에서 빠른 자율 응답이 필요. 이 하네스는 **봇 한정** 으로 적용되며, 사용자 본체 claude 세션에는 영향 없음.
 
 ## 적용 위치
 
@@ -46,7 +46,7 @@ EFFORT=medium bash install.sh plannerbot # medium (default)
 ```
 
 EFFORT 는 두 곳으로 전달:
-1. CLI flag `--effort <level>` (wrapper.sh.template 안)
+1. CLI flag `--effort <level>` (bot-claude-wrapper.sh.template 안)
 2. `settings.json` 의 `effortLevel` (settings.json.template 안)
 
 둘은 `install.sh` 에서 `sed` 로 동일 값 주입 — 한 쪽만 바뀌지 않음.
