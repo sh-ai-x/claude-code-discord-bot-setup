@@ -29,6 +29,28 @@
 | `--disallowedTools "TodoWrite"` | todo list 관리 시도 차단 (오버헤드 줄임) |
 | `--disallowedTools "NotebookEdit"` | notebook 직접 편집 시도 차단 |
 
+## Per-bot effort (다봇 effort 분리)
+
+`EFFORT` 는 봇마다 다르다:
+
+| 봇 | effort | rationale |
+|---|---|---|
+| `plannerbot` | medium | 빠른 자율 응답 — 전략적 결정은 본체 high 세션에서 |
+| `dsbot` | high | 시니어 DS 작업 — 통계·분석 rigor 위해 깊은 사고 필요 |
+
+전환은 `install.sh` 의 `EFFORT` env var:
+
+```bash
+EFFORT=high bash install.sh dsbot       # high effort
+EFFORT=medium bash install.sh plannerbot # medium (default)
+```
+
+EFFORT 는 두 곳으로 전달:
+1. CLI flag `--effort <level>` (wrapper.sh.template 안)
+2. `settings.json` 의 `effortLevel` (settings.json.template 안)
+
+둘은 `install.sh` 에서 `sed` 로 동일 값 주입 — 한 쪽만 바뀌지 않음.
+
 ## 두 단계 deny (defense in depth)
 
 1. **CLI flag** (`--disallowedTools`): claude code 가 도구 호출 자체를 거부
