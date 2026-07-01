@@ -1,7 +1,7 @@
-# Claude Code + Discord Bot — Autonomous Setup (plannerbot)
+# Claude Code + Discord Bot — Autonomous Setup (plannerbot + dsbot)
 
 > **Mac (Darwin) + launchd 기반 영구 봇 운영 가이드**.
-> 1줄 명령으로 부팅 시 자동 시작 + crash 자동 재시작 + 다봇 협업 (`@plannerbot` 멘션 + 봇-봇 핸드오프).
+> 1줄 명령으로 부팅 시 자동 시작 + crash 자동 재시작 + 다봇 협업 (`@plannerbot` / `@dsbot` 멘션 + 봇-봇 핸드오프).
 
 ---
 
@@ -9,16 +9,18 @@
 
 | 항목 | 상태 |
 |---|---|
-| `~/.claude/channels/discord-plannerbot/` (700) | ✅ 봇 디렉토리 |
-| `.env` (chmod 600, `DISCORD_BOT_TOKEN`) | ✅ |
-| `soul.md` (기획팀장 + cross-bot 멘션 규율) | ✅ |
-| `access.json` (7 채널 등록, `ackReaction=👀`) | ✅ |
+| `~/.claude/channels/discord-plannerbot/` (700) | ✅ 봇 디렉토리 (medium effort) |
+| `~/.claude/channels/discord-dsbot/` (700) | ✅ 봇 디렉토리 (high effort, 시니어 DS) |
+| `.env` (chmod 600, `DISCORD_BOT_TOKEN`) | ✅ 둘 다 |
+| `soul.md` (기획팀장 / 시니어 DS) | ✅ 둘 다 |
+| `access.json` (7 채널 등록) | ✅ 둘 다 (dsbot ackReaction=📊) |
 | discord plugin (`claude-plugins-official/discord`) | ✅ enabled |
 | cache + marketplace `server.ts` patch | ✅ 봇-봇 멘션 + `channel_bots` 자동 주입 |
 | `.mcp.json` launch command fix | ✅ `bun --install=fallback server.ts` |
-| launchd plist (`com.user.plannerbot-claude`) | ✅ RunAtLoad + KeepAlive |
+| launchd plist (`com.user.<bot>-claude`) | ✅ RunAtLoad + KeepAlive, 봇별 |
 | `script` pty wrapper | ✅ claude interactive 모드 |
-| 봇 online + DM/스레드/봇-봇 멘션 응답 | ✅ |
+| 봇 online + DM/스레드/봇-봇 멘션 응답 | ✅ 둘 다 |
+| `/bot` skill (list/start/stop/restart/status) | ✅ `~/.claude/skills/bot/` |
 
 ---
 
@@ -82,20 +84,20 @@ launchd (PID 1)
 
 #
 
-## 🎚 하네스 (plannerbot 한정 강한 자율)
+## 🎚 하네스 (다봇 강한 자율)
 
-[docs/harness.md](docs/harness.md) —  + / deny 로 빠른 자율 응답. 사용자 본체 세션은 high effort + 자유.
+[docs/harness.md](docs/harness.md) — `EFFORT` env var 로 봇별 effort 분리 (plannerbot=medium, dsbot=high). 사용자 본체 세션은 high effort + 자유.
 
 ## 🛠 관리 명령 (전체)
 
 ```bash
 # ─── 상태 확인 ───
-launchctl list | grep planner          # plist status (PID + exit code)
-ps aux | grep -E '[c]laude.*--channels|[b]un.*server\.ts'  # 프로세스 트리
-tail -f /tmp/plannerbot-claude-stderr.log  # stderr 실시간
-tail -f /tmp/plannerbot-claude-stdout.log  # stdout (TUI) 실시간
+launchctl list | grep -E 'planner|dsbot'  # 모든 봇 plist status (PID + exit code)
+ps aux | grep -E '[c]laude.*--channels'   # 모든 봇 프로세스 트리
+tail -f /tmp/plannerbot-claude-stderr.log  # plannerbot stderr 실시간
+tail -f /tmp/dsbot-claude-stderr.log       # dsbot stderr 실시간
 
-# ─── 시작 / 중지 / 재시작 ───
+# ─── 시작 / 중지 / 재시작 (plannerbot 예시; dsbot 도 동일 패턴) ───
 launchctl load ~/Library/LaunchAgents/com.user.plannerbot-claude.plist    # 시작
 launchctl unload ~/Library/LaunchAgents/com.user.plannerbot-claude.plist  # 중지
 launchctl kickstart -k gui/501/com.user.plannerbot-claude                # 강제 재시작
@@ -107,6 +109,7 @@ tmux new-session -d -s plannerbot-debug -c ~/dev/projects/plannerbot \
   "/tmp/plannerbot-claude-wrapper.sh"
 tmux attach -t plannerbot-debug
 # → 이건 debug 용. main bot 은 launchd 가 관리.
+# 같은 패턴으로 dsbot 도 attach 가능 (tmux session 이름만 다르게).
 
 # ─── 페어링 (첫 DM) ───
 # 1) Discord 앱에서 봇에 DM "안녕" → 봇이 6자리 pairing code 응답
@@ -114,7 +117,7 @@ tmux attach -t plannerbot-debug
 /discord:access pair <코드>
 # 3) access.json 에 sender ID 자동 추가, 이후 DM 자동 도달
 
-# ─── 완전 제거 (cleanup) ───
+# ─── 완전 제거 (cleanup, plannerbot 예시) ───
 launchctl unload ~/Library/LaunchAgents/com.user.plannerbot-claude.plist
 rm ~/Library/LaunchAgents/com.user.plannerbot-claude.plist
 rm -rf ~/.claude/channels/discord-plannerbot
@@ -122,28 +125,42 @@ rm -rf /tmp/plannerbot-*
 # discord plugin 은 /plugin uninstall discord@claude-plugins-official
 ```
 
+> **Tip**: 위 명령들을 매번 치기 귀찮으면 `/bot` 슬래시 커맨드를 쓰세요. 아래 섹션 참고.
+
 ### 🧪 정상 동작 확인 (3 단계)
+
+**한 줄로 모든 봇 상태 확인** (위 `/bot` skill 섹션 참고):
+
+```bash
+bot              # 또는 /bot
+bot plannerbot   # 또는 /bot plannerbot
+bot dsbot        # 또는 /bot dsbot
+```
+
+**수동 확인 (launchctl 직접):**
 
 **Step 1: launchd + 프로세스**
 ```bash
-launchctl list | grep planner
-# 예상: 46509 0 com.user.plannerbot-claude   (PID + exit code 0)
+launchctl list | grep -E 'planner|dsbot'
+# 예상: 두 줄 (plannerbot, dsbot) — 각 줄에 PID + exit code 0
 
-ps aux | grep -E '[c]laude.*--channels|[b]un.*server\.ts'
-# 예상: 3 줄 (script → claude → bun 의 부모-자식 체인)
+ps aux | grep -E '[c]laude.*--channels'
+# 예상: 두 claude 프로세스 — plannerbot (medium), dsbot (high)
 ```
 
 **Step 2: Discord 게이트웨이**
 ```bash
-tail -5 /tmp/plannerbot-claude-stderr.log
-# 예상: "discord channel: gateway connected as plannerbot#3517"
-#       (DeprecationWarning 은 무시, discord.js v15 호환)
+lsof -nP -p <plannerbot-claude-pid> 2>/dev/null | grep ESTABLISHED
+# 예상: ESTABLISHED TCP to Discord gateway IPs (160.79.x.x 또는 162.159.x.x)
 ```
 
+> 참고: stderr 에 "gateway connected" 메시지가 안 떠도 정상 — 현재 discord plugin 버전에서는 stdout/TUI 로만 표시됨.
+
 **Step 3: Discord 앱**
-- 봇 목록에서 `plannerbot` 상태 점 = 🟢 online
+- 봇 목록에서 `plannerbot`, `dsbot` 상태 점 = 🟢 online
 - DM → `안녕` → 봇 응답 (페어링 코드 또는 첫 인사)
 - 채널/스레드 → `@plannerbot 메시지` → 봇 응답
+- 같은 채널 → `@dsbot 의견?` → dsbot 응답 + `@plannerbot` 자동 멘션
 
 ### ⚠️ 운영 시 주의사항
 
@@ -244,6 +261,91 @@ Multiple bots in the same channel auto-mention each other via `meta.channel_bots
 
 ---
 
+## 🤖 봇 관리 (`/bot` skill)
+
+설치된 모든 Discord 봇을 한 곳에서 관리하는 Claude Code 슬래시 커맨드. 봇을 추가/제거/재시작/상태 확인하는 4가지 action + 자동 목록.
+
+### Slash command 사용법
+
+| 명령 | 동작 |
+|---|---|
+| `/bot` | 설치된 봇 목록 (plannerbot, dsbot, ...) |
+| `/bot <name>` | 그 봇의 status (action 생략 시 기본) |
+| `/bot <name> start` | `launchctl load` — 봇 시작 |
+| `/bot <name> stop` | `launchctl unload` — 봇 정지 |
+| `/bot <name> restart` | `launchctl kickstart -k` — 강제 재시작 |
+| `/bot <name> status` | 6-line health check (아래) |
+
+### Terminal 직접 호출
+
+`/bot` 슬래시 커맨드 외에 bash helper 도 PATH 에서 직접 호출 가능:
+
+```bash
+bot                              # 봇 목록
+bot plannerbot                   # plannerbot status
+bot plannerbot restart           # 강제 재시작
+bot dsbot start                  # dsbot 시작
+bot nonexistent_xyz status       # exit 3, stderr: "not installed"
+```
+
+### status 출력 예시 (실제 dsbot)
+
+```
+dsbot
+  launchd:   15869 0
+  claude:    15882  --effort high
+  bun:       <not running>
+  gateway:   2 ESTABLISHED TCP (Discord via claude PID 15882)
+  api:       HTTP 200 in 0.265s
+```
+
+5개 health signal:
+- `launchd:` — plist PID + exit code (`not loaded` if stopped)
+- `claude:` — claude process PID + effort level (`<not running>` if dead)
+- `bun:` — bun server.ts PID (현재 환경에서는 `<not running>` 정상 — claude 안에서 inline 됨)
+- `gateway:` — Discord gateway ESTABLISHED TCP count
+- `api:` — `discord.com/api/v10/users/@me` HTTP status (토큰 검증)
+
+### Exit codes
+
+| Code | 의미 |
+|---|---|
+| 0 | success |
+| 2 | unknown action (start/stop/restart/status 외) |
+| 3 | bot not installed (plist 없음) |
+
+### 파일 위치
+
+| 파일 | 경로 |
+|---|---|
+| `SKILL.md` (slash command 정의) | `~/.claude/skills/bot/SKILL.md` |
+| `bin/bot` (bash helper) | `~/.claude/skills/bot/bin/bot` |
+| `tests/test_bot.sh` | `~/.claude/skills/bot/tests/test_bot.sh` |
+
+### 테스트 실행
+
+```bash
+bash ~/.claude/skills/bot/tests/test_bot.sh
+# 15 assertions, 5 tests, 모두 PASS (exit 0)
+```
+
+### Discovery — 새 봇 자동 인식
+
+`bin/bot` 은 `~/Library/LaunchAgents/com.user.*-claude.plist` 를 glob 으로 스캔. `install.sh` 로 새 봇을 설치하면 (`EFFORT=high bash install.sh mybot`) `/bot` 목록에 자동 등장 — 별도 등록 작업 불필요.
+
+### launchctl 직접 호출 (fallback)
+
+`/bot` 이 launchctl 명령을 wrapping 한 것 — power user 는 여전히 직접 호출 가능:
+
+```bash
+launchctl list | grep <bot>                                              # 상태
+launchctl load ~/Library/LaunchAgents/com.user.<bot>-claude.plist        # 시작
+launchctl unload ~/Library/LaunchAgents/com.user.<bot>-claude.plist      # 중지
+launchctl kickstart -k gui/501/com.user.<bot>-claude                      # 강제 재시작
+```
+
+---
+
 ## 🔧 수동 셋업 (단계별)
 
 ### 0. Discord 봇 생성
@@ -331,18 +433,42 @@ launchctl load ~/Library/LaunchAgents/com.user.plannerbot-claude.plist
 ```
 .
 ├── README.md                          # 본 문서
-├── install.sh                         # 1-line installer
+├── install.sh                         # 1-line installer (EFFORT env var)
 ├── templates/
-│   └── soul-plannerbot.md             # soul.md template (기획팀장 + cross-bot)
+│   ├── soul-plannerbot.md             # soul.md template (기획팀장 + cross-bot)
+│   ├── soul-dsbot.md                  # soul.md template (시니어 DS generalist)
+│   ├── settings.json.template         # parameterized settings.json
+│   └── access.json.example            # access.json 예시 (user 편집)
 ├── patches/
 │   └── server.ts                      # discord plugin server.ts (봇-봇 + channel_bots)
 ├── launchd/
-│   └── com.user.plannerbot-claude.plist  # launchd plist
+│   └── com.user.plannerbot-claude.plist  # launchd plist template (sed 로 botname 치환)
 ├── wrappers/
-│   └── plannerbot-claude-wrapper.sh   # script pty wrapper
+│   ├── plannerbot-claude-wrapper.sh   # bot-specific wrapper (legacy, 보존)
+│   └── bot-claude-wrapper.sh.template # parameterized wrapper (install.sh 가 사용)
+├── tests/                             # install.sh / template 회귀 테스트
+│   ├── templates/                     # 3개 template 회귀 테스트
+│   ├── install/                       # install.sh 회귀 테스트
+│   └── docs/                          # README / harness.md 회귀 테스트
 └── docs/
     ├── troubleshooting.md             # 디버깅 가이드
-    └── architecture.md                # 아키텍처 상세
+    ├── architecture.md                # 아키텍처 상세
+    ├── harness.md                     # 다봇 자율 하네스 (plannerbot=medium, dsbot=high)
+    └── superpowers/                   # spec/plan/ledger (brainstorming 산출물)
+        ├── specs/                     # feature designs
+        ├── plans/                     # implementation plans
+        └── sdd/                       # SDD progress ledger
+```
+
+**User-level (`~/.claude/skills/bot/`)** — `/bot` skill:
+
+```
+~/.claude/skills/bot/
+├── SKILL.md           # slash command 정의 (auto-discovered)
+├── bin/
+│   └── bot            # bash helper: list | <name> [start|stop|restart|status]
+└── tests/
+    └── test_bot.sh    # 15 assertions, 5 tests (bash 직접 실행)
 ```
 
 ---
