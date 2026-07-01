@@ -90,26 +90,27 @@ launchd (PID 1)
 
 ## 🛠 관리 명령 (전체)
 
+> 봇은 tmux 세션으로 동작. `bot` 슬래시 커맨드 / `~/.local/bin/bot` 헬퍼 권장 (아래 `/bot` skill 섹션 참고). 직접 launchctl 안 써도 됨.
+
 ```bash
-# ─── 상태 확인 ───
-launchctl list | grep -E 'planner|dsbot'  # 모든 봇 plist status (PID + exit code)
-ps aux | grep -E '[c]laude.*--channels'   # 모든 봇 프로세스 트리
+# ─── 상태 확인 (/bot skill 권장) ───
+bot                              # 설치된 봇 목록
+bot plannerbot status            # plannerbot 5-line health check
+bot dsbot status                 # dsbot 5-line health check
+tmux list-sessions               # tmux 세션 직접 보기
+ps aux | grep -E '[c]laude.*--channels'   # 프로세스 트리
 tail -f /tmp/plannerbot-claude-stderr.log  # plannerbot stderr 실시간
 tail -f /tmp/dsbot-claude-stderr.log       # dsbot stderr 실시간
 
-# ─── 시작 / 중지 / 재시작 (plannerbot 예시; dsbot 도 동일 패턴) ───
-launchctl load ~/Library/LaunchAgents/com.user.plannerbot-claude.plist    # 시작
-launchctl unload ~/Library/LaunchAgents/com.user.plannerbot-claude.plist  # 중지
-launchctl kickstart -k gui/501/com.user.plannerbot-claude                # 강제 재시작
+# ─── 시작 / 중지 / 재시작 (직접) ───
+tmux new-session -d -s plannerbot -c ~/dev/projects/plannerbot \
+  "/tmp/plannerbot-claude-wrapper.sh > /tmp/plannerbot-claude-stdout.log 2> /tmp/plannerbot-claude-stderr.log"
+tmux kill-session -t plannerbot
+# 강제 재시작: kill-session 후 new-session
 
 # ─── attach (TUI 직접 조작) ───
-# launchd 가 띄운 claude 는 tmux 세션이 아니라 detached process.
-# TUI 에 attach 하려면 별도 tmux 안에서 claude 를 직접 띄워야 함:
-tmux new-session -d -s plannerbot-debug -c ~/dev/projects/plannerbot \
-  "/tmp/plannerbot-claude-wrapper.sh"
-tmux attach -t plannerbot-debug
-# → 이건 debug 용. main bot 은 launchd 가 관리.
-# 같은 패턴으로 dsbot 도 attach 가능 (tmux session 이름만 다르게).
+tmux attach -t plannerbot
+# → 본인이 띄운 tmux 세션이라 attach 가능. detach: Ctrl-B, D
 
 # ─── 페어링 (첫 DM) ───
 # 1) Discord 앱에서 봇에 DM "안녕" → 봇이 6자리 pairing code 응답
@@ -118,8 +119,10 @@ tmux attach -t plannerbot-debug
 # 3) access.json 에 sender ID 자동 추가, 이후 DM 자동 도달
 
 # ─── 완전 제거 (cleanup, plannerbot 예시) ───
-launchctl unload ~/Library/LaunchAgents/com.user.plannerbot-claude.plist
-rm ~/Library/LaunchAgents/com.user.plannerbot-claude.plist
+tmux kill-session -t plannerbot 2>/dev/null
+launchctl unload ~/Library/LaunchAgents/com.user.plannerbot-claude.plist 2>/dev/null
+launchctl unload ~/Library/LaunchAgents/com.user.plannerbot-tmux-claude.plist 2>/dev/null
+rm ~/Library/LaunchAgents/com.user.plannerbot-*.plist
 rm -rf ~/.claude/channels/discord-plannerbot
 rm -rf /tmp/plannerbot-*
 # discord plugin 은 /plugin uninstall discord@claude-plugins-official
@@ -137,12 +140,12 @@ bot plannerbot   # 또는 /bot plannerbot
 bot dsbot        # 또는 /bot dsbot
 ```
 
-**수동 확인 (launchctl 직접):**
+**수동 확인 (tmux + 프로세스 트리):**
 
-**Step 1: launchd + 프로세스**
+**Step 1: tmux 세션 + 프로세스**
 ```bash
-launchctl list | grep -E 'planner|dsbot'
-# 예상: 두 줄 (plannerbot, dsbot) — 각 줄에 PID + exit code 0
+tmux list-sessions | grep -E 'planner|dsbot'
+# 예상: 두 줄 — 각 세션에 봇이 살아있음
 
 ps aux | grep -E '[c]laude.*--channels'
 # 예상: 두 claude 프로세스 — plannerbot (medium), dsbot (high)
@@ -150,8 +153,9 @@ ps aux | grep -E '[c]laude.*--channels'
 
 **Step 2: Discord 게이트웨이**
 ```bash
-lsof -nP -p <plannerbot-claude-pid> 2>/dev/null | grep ESTABLISHED
-# 예상: ESTABLISHED TCP to Discord gateway IPs (160.79.x.x 또는 162.159.x.x)
+lsof -nP -p <bun-pid> 2>/dev/null | grep ESTABLISHED
+# bun: discord plugin 의 MCP 서버 (claude 의 child)
+# 예상: ESTABLISHED TCP to Discord gateway IPs (162.159.x.x 또는 160.79.x.x)
 ```
 
 > 참고: stderr 에 "gateway connected" 메시지가 안 떠도 정상 — 현재 discord plugin 버전에서는 stdout/TUI 로만 표시됨.
@@ -168,21 +172,16 @@ lsof -nP -p <plannerbot-claude-pid> 2>/dev/null | grep ESTABLISHED
    ```bash
    cp patches/server.ts ~/.claude/plugins/cache/claude-plugins-official/discord/0.0.4/server.ts
    cp patches/server.ts ~/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/discord/server.ts
-   launchctl kickstart -k gui/501/com.user.plannerbot-claude  # 재시작
+   bot dsbot restart    # tmux 세션 재시작
    ```
 
-2. **soul.md 수정 시 SessionStart hook 가 자동 inject** (다음 메시지부터). launchd 재시작 불필요.
+2. **soul.md 수정 시 SessionStart hook 가 자동 inject** (다음 메시지부터). 봇 재시작 불필요.
 
-3. **access.json 수정 시 server 가 자동 reload** (다음 메시지마다). 즉 Discord 에서 `/discord:access allow 1234` 같은 명령 즉시 반영.
+3. **access.json 수정 시 server 가 자동 reload** (다음 메시지마다). 즉 Discord 에서 `/discord:access allow 1234` 같은 명령 즉시 반영. **새 채널 추가**도 access.json `groups` 에 ID 추가만 하면 됨.
 
-4. **launchd 가 PID 를 잃은 경우 (강제 종료 후)**:
-   ```bash
-   # PID -1 (실패) / 빈 PID → crash. KeepAlive 가 자동 재시작하지만
-   # 10회 연속 실패 시 ThrottleInterval 로 backoff. 직접 kickstart:
-   launchctl kickstart -k gui/501/com.user.plannerbot-claude
-   ```
+4. **settings.json 에 `enabledPlugins: discord@claude-plugins-official` 가 반드시 있어야** `--channels` 플래그가 동작. 빠지면 플러그인 무시, 봇 online 이지만 메시지 무반응.
 
-5. **claude 의 stdin pipe 가 닫히면 server.ts 가 shutdown → bun death → launchd 재시작**. 이 사이 1-2 초 메시지 손실. KeepAlive 로 자동 복구되지만 자주 발생하면 봇이 자주 깜빡임. → FIFO + script pty 로 stdin keep-alive.
+5. **launchd 직접 사용보다 tmux 권장**. launchd 가 stdin 을 즉시 닫아 claude 가 MCP spawn 직전 hang 함. `bot <name> start|stop|restart` 가 tmux 로 우회. 부팅 시 자동 시작은 `launchd/com.user.<bot>-tmux-claude.plist` 템플릿으로 launchd 가 tmux 세션을 띄움.
 
 ---
 
