@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+        <key>Crashed</key>
+        <true/>
+    </dict>
+    <key>Label</key>
+    <string>com.user.{{BOT}}-tmux-claude</string>
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-c</string>
+        <string>tmux new-session -d -s {{BOT}} -c {{HOME}}/dev/projects/{{BOT}} "/tmp/{{BOT}}-claude-wrapper.sh > /tmp/{{BOT}}-claude-stdout.log 2> /tmp/{{BOT}}-claude-stderr.log"</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardErrorPath</key>
+    <string>/tmp/{{BOT}}-tmux-stderr.log</string>
+    <key>StandardOutPath</key>
+    <string>/tmp/{{BOT}}-tmux-stdout.log</string>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+</dict>
+</plist>

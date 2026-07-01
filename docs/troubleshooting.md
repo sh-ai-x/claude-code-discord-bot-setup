@@ -70,3 +70,60 @@ sudo launchctl kill TERM <pid>
 ```
 
 또는 `~/Library/LaunchAgents/com.user.plannerbot-*.plist` 삭제 후 reboot.
+
+## claude 가 launchd 에서 멈춤 (MCP 서버 미스폰)
+
+증상: `launchctl list | grep -E 'planner|dsbot'` PID + exit code 0 인데 `ps` 에서 봇 claude 자식 프로세스가 없음. stdout 에 `^D` 만 반복.
+
+원인: launchd 가 `script -q /dev/null claude ...` 의 stdin 을 즉시 닫아 claude 가 pty 모드 진입 전에 EOF 수신 → MCP 서버(bun) spawn 안 함.
+
+**해결 (권장)**: tmux 세션으로 직접 실행 — launchd 의 stdin 처리를 우회.
+
+```bash
+# 봇 1개 시작
+tmux new-session -d -s <bot> -c ~/dev/projects/<bot> \
+  "/tmp/<bot>-claude-wrapper.sh > /tmp/<bot>-claude-stdout.log 2> /tmp/<bot>-claude-stderr.log"
+
+# 상태 확인
+tmux list-sessions       # dsbot, plannerbot
+ps aux | grep '[c]laude.*--effort' | head
+ps aux | grep '[b]un.*discord/0.0.4' | head
+```
+
+장점: pty 안정, MCP 정상 spawn, 5초 안에 Discord 게이트웨이 ESTABLISHED.
+단점: reboot 시 tmux 세션 살아남지 않음 → 부팅 후 위 명령 재실행 필요. (자동 재시작 launchd job 추가 가능 — `templates/launchd-tmux-bot.plist` 참조.)
+
+## 새 채널 추가 시 봇이 무반응
+
+`access.json` 의 `groups` 에 채널 ID 가 없으면 discord plugin 의 `gate()` 가 메시지를 폐기 → claude 가 수신 못함.
+
+증상: 봇은 online 인데 특정 채널/스레드 mention 에 응답 없음. `← discord · ...` 줄이 claude TUI 에 안 뜸.
+
+**해결**: `~/.claude/channels/discord-<bot>/access.json` 의 `groups` 에 채널 ID 추가. discord plugin 은 다음 메시지마다 자동 reload 하므로 재시작 불필요.
+
+```json
+"groups": {
+  "<기존 채널들>": { "requireMention": true, "allowFrom": [] },
+  "<새_채널_ID>": { "requireMention": true, "allowFrom": [] }
+}
+```
+
+채널 ID 확인: Discord 클라이언트 우클릭 → "채널 ID 복사" (개발자 모드 ON 필요).
+
+## settings.json 에 enabledPlugins 누락
+
+증상: `launchctl list` OK + 프로세스 살아있음 + TCP 도 살아있지만 봇이 어떤 메시지에도 반응 없음. `--channels plugin:discord@claude-plugins-official` 플래그가 무시됨.
+
+원인: claude 는 `--channels` 플래그 + settings.json 의 `enabledPlugins` 가 둘 다 있어야 플러그인을 로드함.
+
+**해결**: `/tmp/<bot>-settings.json` 에 다음 추가:
+
+```json
+{
+  "effortLevel": "medium",
+  "enabledPlugins": { "discord@claude-plugins-official": true },
+  "permissions": { "deny": ["AskUserQuestion", "ExitPlanMode"] }
+}
+```
+
+`effortLevel` 은 `medium` (plannerbot) / `high` (dsbot).
