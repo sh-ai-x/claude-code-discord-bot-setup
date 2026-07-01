@@ -55,16 +55,13 @@ tmux session: dsbot       ──┤  (수동: tmux new-session, 또는 launchd-t
 ```
 install.sh                                EFFORT=medium|high bash install.sh <bot>
 launchd/
-  com.user.plannerbot-claude.plist        launchd 직접 wrapper 실행 (레거시, stdin hang 있음)
-  com.user.tmplbot-tmux-claude.plist      launchd → tmux new-session 래퍼 ({{BOT}} 치환 필요)
+  com.user.tmplbot-tmux-claude.plist      launchd → tmux new-session 래퍼 ({{BOT}}/{{HOME}} 치환)
 wrappers/
   bot-claude-wrapper.sh.template          파라미터화된 wrapper ({{BOT}}, {{EFFORT}}, {{DISALLOWED_TOOLS}})
-  plannerbot-claude-wrapper.sh            레거시 — plannerbot 한정
-  plannerbot-settings.json                레거시 — /tmp/plannerbot-settings.json
 templates/
   soul-plannerbot.md                      기획팀장 persona
   soul-dsbot.md                           시니어 DS persona
-  settings.json.template                  effortLevel + permissions (⚠ enabledPlugins 없음 — 수동 추가 필요)
+  settings.json.template                  effortLevel + enabledPlugins + permissions.deny
   access.json.example                     allowFrom/groups/mentionPatterns 예시
 patches/
   server.ts                               discord plugin patch (봇-봇 + channel_bots 주입)
@@ -79,7 +76,6 @@ tests/
   templates/                              settings/wrapper/soul 템플릿 회귀 테스트
   install/                                install.sh 회귀 테스트
   docs/                                   README / harness.md 회귀 테스트
-.superpowers/sdd/                         SDD 작업 ledger (내부)
 ```
 
 **Bot state (`~/.claude/channels/discord-<bot>/`, runtime, git 밖):**
@@ -282,16 +278,13 @@ claude-code-discord-bot-setup/
 ├── README.md                              본 문서
 ├── install.sh                             EFFORT=medium|high bash install.sh <bot>
 ├── launchd/
-│   ├── com.user.plannerbot-claude.plist   레거시 launchd wrapper
-│   └── com.user.tmplbot-tmux-claude.plist tmux 래퍼 launchd plist 템플릿
+│   └── com.user.tmplbot-tmux-claude.plist launchd → tmux 래퍼 템플릿
 ├── wrappers/
-│   ├── bot-claude-wrapper.sh.template     파라미터 wrapper
-│   ├── plannerbot-claude-wrapper.sh       레거시 plannerbot wrapper
-│   └── plannerbot-settings.json           레거시 settings
+│   └── bot-claude-wrapper.sh.template     파라미터 wrapper ({{BOT}}, {{EFFORT}}, …)
 ├── templates/
 │   ├── soul-plannerbot.md
 │   ├── soul-dsbot.md
-│   ├── settings.json.template             enabledPlugins 없음 — 수동 보완 필요
+│   ├── settings.json.template             effortLevel + enabledPlugins + permissions.deny
 │   └── access.json.example
 ├── patches/
 │   └── server.ts                          discord plugin patch
@@ -304,9 +297,10 @@ claude-code-discord-bot-setup/
 │   ├── architecture.md
 │   ├── harness.md
 │   └── superpowers/{specs,plans}/
-└── .superpowers/sdd/                      SDD ledger (내부)
+```
 
 # Runtime (git 밖)
+```
 ~/.claude/channels/discord-<bot>/
 ~/.claude/skills/bot/                      /bot skill (SKILL.md, bin/bot, tests/test_bot.sh)
 /tmp/<bot>-claude-wrapper.sh

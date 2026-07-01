@@ -1,5 +1,8 @@
 {
   "effortLevel": "{{EFFORT_LEVEL}}",
+  "enabledPlugins": {
+    "discord@claude-plugins-official": true
+  },
   "permissions": {
     "deny": [
       "AskUserQuestion",

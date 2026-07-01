@@ -1,9 +1,0 @@
-{
-  "effortLevel": "medium",
-  "permissions": {
-    "deny": [
-      "AskUserQuestion",
-      "ExitPlanMode"
-    ]
-  }
-}
