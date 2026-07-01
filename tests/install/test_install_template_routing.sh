@@ -21,8 +21,8 @@ grep -q 'settings.json.template' "$INSTALL" || { echo "FAIL: install.sh does not
 # 6. Per-bot soul template selection
 grep -qE 'templates/soul-\$BOT\.md' "$INSTALL" || { echo "FAIL: per-bot soul template selection missing"; exit 1; }
 
-# 7. Bot-specific wrapper fallback (prefers <bot>-claude-wrapper.sh)
-grep -qE 'wrappers/\$BOT-claude-wrapper\.sh' "$INSTALL" || { echo "FAIL: bot-specific wrapper fallback missing"; exit 1; }
+# 7. (removed: bot-specific wrapper fallback — directory was deleted,
+#    parameterized template is the only path now)
 
 # 8. Shellcheck clean (if shellcheck available)
 if command -v shellcheck >/dev/null; then
